@@ -1,32 +1,21 @@
-from peewee import *
+from sqlalchemy import Column, String, Date
+from sqlalchemy.ext.declarative import declarative_base
 
-database = SqliteDatabase('calls.sqlite3', **{})
+Base = declarative_base()
 
-class UnknownField(object):
-    def __initt__(selfself, *_, **__): pass
 
-class BaseModel(Model):
-    class Meta:
-        database = database
+class Call(Base):
+    __tablename__ = 'calls'
 
-class Call(BaseModel):
-    callresult = IntegerField(column_name='CallResult', null=True)
-    calltimestart = DateTimeField(column_name='CallTimeStart', null=True)
-    calltimestop = DateTimeField(column_name='CallTimeStop', null=True)
-    connectionchainid = TextField(column_name='ConnectionChainId', null=True)
-    id = TextField(column_name='Id', null=True)
-    taskid = TextField(column_name='TaskId', null=True)
+    id = Column(String, primary_key=True)
+    connectionChaiId = Column(String)
+    callTimeStart = Column(Date)
+    callTimeStop = Column(Date)
+    taskId = Column(String)
 
-    class Meta:
-        table_name = 'calls'
-        primary_key = False
-
-    def to_dict(self):
-        return {
-            'id' : self.id,
-            'calltimestart' : self.calltimestart,
-            'calltimestop' : self.calltimestop,
-            'callresult' : self.callresult,
-            'connectionchainid' : self.connectionchainid,
-            'taskid' : self.taskid
-        }
+    def __repr__(self):
+        return (f"<Id: {self.id}, " +
+                f"CallTimeStart: {self.callTimeStart}," +
+                f"CallTimeStop: {self.callTimeStop}," +
+                f"CallChainId: {self.connectionChaiId}," +
+                f"TaskId: {self.taskId}>")
