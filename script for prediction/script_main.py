@@ -1,42 +1,46 @@
-from sqlalchemy import create_engine, func
-from sqlalchemy.orm import sessionmaker
-from call_model import Call
+import database
 import pandas as pd
 import matplotlib.pyplot as plt
 import statsmodels.api as sm
 
-engine = create_engine('sqlite:///calls.sqlite3', echo=True)
-Session = sessionmaker(bind=engine)
-session = Session()
 
-calls = session.query(Call.callTimeStart, func.count(Call.callTimeStart))\
-    .group_by(func.strftime('%Y-%m-%d', Call.callTimeStart))\
-    .all()
+def main():
+    callsDB = database.CallsDataBase('sqlite:///calls.sqlite3')
+    calls = callsDB.getCountGroupByDay()
 
-callsDF = pd.DataFrame(calls, columns=['date', 'sum of calls'])
-callsDF['date'] = pd.to_datetime(callsDF['date'])
-callsDF.set_index('date', inplace=True)
+    # Конвертируем в DataFrames
+    callsDF = pd.DataFrame(calls, columns=['date', 'sum of calls'])
+    callsDF['date'] = pd.to_datetime(callsDF['date'])
+    callsDF.set_index('date', inplace=True)
 
-test = sm.tsa.adfuller(callsDF['sum of calls'])
-print(test[0] < test[4]['5%'])
+    # Проводим тест Дики-Фуллера
+    test = sm.tsa.adfuller(callsDF['sum of calls'])
+    print(' Ряд стационарен и не имеет единичных корней: ', test[0] < test[4]['5%'])
 
-fig = plt.figure(figsize=(12,8))
-ax1 = fig.add_subplot(211)
-fig = sm.graphics.tsa.plot_acf(callsDF.values.squeeze(), lags=25, ax=ax1)
-ax2 = fig.add_subplot(212)
-fig = sm.graphics.tsa.plot_pacf(callsDF, lags=25, ax=ax2)
+    # Строим графики ACF и PACF
+    fig = plt.figure(figsize=(12, 9))
+    ax1 = fig.add_subplot(311)
+    fig = sm.graphics.tsa.plot_acf(callsDF.values.squeeze(), lags=25, ax=ax1)
+    ax2 = fig.add_subplot(312)
+    fig = sm.graphics.tsa.plot_pacf(callsDF, lags=25, ax=ax2)
 
-model = sm.tsa.ARIMA(callsDF, order=(1, 1, 1), freq='D').fit(full_output=True, disp=0)
-print(model.summary())
+    model = sm.tsa.ARIMA(callsDF, order=(1, 1, 1), freq='D').fit(full_output=True, disp=0)
+    print(model.summary())
 
-pred = model.predict('2017-02-28', '2017-03-31', typ='levels')
+    prediction = model.predict('2017-02-28', '2017-03-31', typ='levels')
+    print(prediction)
 
-callsDF.plot(figsize=(12, 6))
-pred.plot(style='r--', label="predict")
+    ax3 = fig.add_subplot(313)
+    fig = prediction.plot(style='r--', label="prediction", ax=ax3)
+    fig = callsDF.plot(ax=ax3)
 
-time_series = callsDF['sum of calls']
-time_series.rolling(30).mean().plot(label="rolling mean per month")
+    time_series = callsDF['sum of calls']
+    fig = time_series.rolling(30).mean().plot(label="rolling mean per month", ax=ax3)
 
-print(pred)
-plt.legend()
-plt.show()
+    plt.legend()
+    plt.show()
+
+if __name__ == '__main__':
+    main()
+
+
